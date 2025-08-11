@@ -1,0 +1,97 @@
+service: awesome-pizza
+
+useDotenv: true
+frameworkVersion: "4"
+configValidationMode: error
+
+plugins:
+  - serverless-prune-plugin
+
+custom:
+  currentStage: "${opt:stage, self:provider.stage}"
+  tableName: "${self:service}-orders-${self:custom.currentStage}"
+
+  prune:
+    automatic: true
+    number: 2
+
+package:
+  artifact: build/distributions/pizza.zip
+
+  patterns:
+    - "!build/**"
+    - "!.gradle/**"
+    - "!gradlew"
+    - "!gradlew.bat"
+    - "!env/**"
+    - "!node_modules/**"
+    - "!.idea/**"
+    - "!.vscode/**"
+    - "!.serverless/**"
+    - "!lib/**"
+    - "!log/**"
+    - "!.dynamodb/**"
+    - "!tests/**"
+    - "!.dockerignore"
+    - "!.npmignore"
+    - "!.gitignore"
+    - "!.gitattributes"
+    - "!.git/**"
+    - "!tmp/**"
+    - "!tests/**"
+    - "!aws/**"
+    - "!awscli*"
+    - "!package.json"
+    - "!package-lock.json"
+
+provider:
+  name: aws
+  runtime: java17
+  region: eu-central-1
+  stage: test # | staging | prod
+  environment:
+    ENV: ${self:custom.currentStage}
+    REGION: ${self:provider.region}
+    DYNAMO_TABLE: ${self:custom.tableName}
+
+functions:
+  api:
+    handler: com.awesome.pizza.StreamLambdaHandler
+    timeout: 29
+    memorySize: 128
+    events:
+      - http:
+          path: orders
+          method: any
+          integration: lambda-proxy
+      - http:
+          path: orders/{proxy+}
+          method: any
+          integration: lambda-proxy
+
+resources:
+  Resources:
+    OrdersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.tableName}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: entityType
+            AttributeType: S
+          - AttributeName: createdAt
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: byEntityTypeAndCreatedAt
+            KeySchema:
+              - AttributeName: entityType
+                KeyType: HASH
+              - AttributeName: createdAt
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        BillingMode: PAY_PER_REQUEST
