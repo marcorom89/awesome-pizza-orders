@@ -56,10 +56,21 @@ public class OrderServiceImpl implements OrderService {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new OrderNotFoundException(id));
 
-        if (request.getStatus() != null) order.setStatus(request.getStatus());
-        if (request.getCustomerName() != null) order.setCustomerName(request.getCustomerName());
-        if (request.getCustomerEmail() != null) order.setCustomerEmail(request.getCustomerEmail());
-        if (request.getNotes() != null) order.setNotes(request.getNotes());
+        if (request.isStatusPresent()) {
+            order.setStatus(request.getStatus().orElse(null));
+        }
+
+        if (request.isCustomerNamePresent()) {
+            order.setCustomerName(request.getCustomerName().orElse(null));
+        }
+
+        if (request.isCustomerEmailPresent()) {
+            order.setCustomerEmail(request.getCustomerEmail().orElse(null));
+        }
+
+        if (request.isNotesPresent()) {
+            order.setNotes(request.getNotes().orElse(null));
+        }
 
         order.setUpdatedAt(Instant.now());
         orderRepository.save(order);
